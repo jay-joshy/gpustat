@@ -1,6 +1,6 @@
 [package]
 name = "gpustat_fork"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["ylfeng <ylfeng@ir.hit.edu.cn>"]
 edition = "2018"
 license = "GPL-2.0"

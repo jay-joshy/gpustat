@@ -199,12 +199,12 @@ fn main() -> Result<(), StatusError> {
             break;
         } else {
             println!(
-                "{}\t{}\t{}",
+                "{}\t{}\t{}\n{}",
                 hostname::get()?.to_str().unwrap_or_default(),
                 localtime.format("%Y-%m-%d %H:%M:%S"),
-                nvml.sys_driver_version()?
+                nvml.sys_driver_version()?,
+                table
             );
-            println!("{}", table);
             std::thread::sleep(std::time::Duration::from_secs(2));
             // print!("{esc}c", esc = 27 as char);
             execute!(
