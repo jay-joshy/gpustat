@@ -206,7 +206,7 @@ fn main() -> Result<(), StatusError> {
             );
             println!("{}", table);
             std::thread::sleep(std::time::Duration::from_secs(2));
-            execute!(stdout(), Clear(ClearType::All)).unwrap();
+            print!("{esc}c", esc = 27 as char);
         }
     }
     Ok(())
