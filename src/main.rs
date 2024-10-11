@@ -79,12 +79,7 @@ fn main() -> Result<(), StatusError> {
                     }
                 };
 
-                let info = {
-                    let mut s = user.name;
-                    s = s + ":" + &process.cmd().join(" ");
-                    s = s + "/" + &device_process.pid.to_string();
-                    s
-                };
+                let info = { user.name };
                 process_info.push(format!("{}({})", info, used));
             }
 
@@ -139,7 +134,9 @@ fn main() -> Result<(), StatusError> {
             table.add_row(row);
         }
 
-        table.set_header(vec!["", "GPU", "Temp", "Usage", "Fan", "Power", "GPU Mem"]);
+        table.set_header(vec![
+            "", "GPU", "Temp", "Usage", "Fan", "Power", "GPU Mem", "Process",
+        ]);
         if !opts.continuous {
             println!(
                 "{}\t{}\t{}",
