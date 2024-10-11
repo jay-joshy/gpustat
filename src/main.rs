@@ -1,8 +1,13 @@
 use chrono::prelude::*;
 use clap::Parser;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
-use nix::{unistd::{Uid, User}};
+use crossterm::{
+    execute,
+    terminal::{Clear, ClearType},
+};
+use nix::unistd::{Uid, User};
 use nvml_wrapper::{enum_wrappers::device::TemperatureSensor, enums::device::UsedGpuMemory, Nvml};
+use std::io::stdout;
 use sysinfo::{Pid, PidExt, ProcessExt, ProcessRefreshKind, RefreshKind, System, SystemExt};
 use thiserror::Error;
 
@@ -30,7 +35,13 @@ struct Opts {
     // show_user: bool,
     #[arg(short = 'c', long, help = "Display the process name")]
     show_cmd: bool,
-    #[arg(short = 'f', long, help = "Display full command and cpu stats of running process")]
+    #[arg(short = 'i', long, help = "Continually display every 2 seconds")]
+    continuous: bool,
+    #[arg(
+        short = 'f',
+        long,
+        help = "Display full command and cpu stats of running process"
+    )]
     show_full_cmd: bool,
     #[arg(short = 'p', long, help = "Display PID of the process")]
     show_pid: bool,
@@ -72,9 +83,10 @@ fn main() -> Result<(), StatusError> {
     let nvml = Nvml::init()?;
     let device_num = nvml.device_count()?;
 
-    let system = System::new_with_specifics(RefreshKind::new()
-        .with_processes(ProcessRefreshKind::new().with_user())
-        .with_users_list()
+    let system = System::new_with_specifics(
+        RefreshKind::new()
+            .with_processes(ProcessRefreshKind::new().with_user())
+            .with_users_list(),
     );
 
     for index in 0..device_num {
@@ -175,14 +187,24 @@ fn main() -> Result<(), StatusError> {
 
         table.add_row(row);
     }
-
-    println!(
-        "{}\t{}\t{}",
-        hostname::get()?.to_str().unwrap_or_default(),
-        localtime.format("%Y-%m-%d %H:%M:%S"),
-        nvml.sys_driver_version()?
-    );
-    println!("{}", table);
+    if !opts.continuous {
+        println!(
+            "{}\t{}\t{}",
+            hostname::get()?.to_str().unwrap_or_default(),
+            localtime.format("%Y-%m-%d %H:%M:%S"),
+            nvml.sys_driver_version()?
+        );
+        println!("{}", table);
+    } else {
+        execute!(stdout(), Clear(ClearType::All)).unwrap();
+        println!(
+            "{}\t{}\t{}",
+            hostname::get()?.to_str().unwrap_or_default(),
+            localtime.format("%Y-%m-%d %H:%M:%S"),
+            nvml.sys_driver_version()?
+        );
+        println!("{}", table);
+    }
 
     Ok(())
 }
