@@ -1,6 +1,6 @@
 use chrono::prelude::*;
 use clap::Parser;
-use comfy_table::{Attribute, Cell, Color, Table};
+use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
 use nix::unistd::{Uid, User};
 use nvml_wrapper::{enum_wrappers::device::TemperatureSensor, enums::device::UsedGpuMemory, Nvml};
 use std::io::{self, Write};
@@ -64,10 +64,13 @@ fn main() -> Result<(), StatusError> {
     let opts: Opts = Opts::parse();
     let stdout = io::stdout(); // get the global stdout entity
     let mut handle = stdout.lock(); // acquire a lock on it
-
-    let mut table = Table::new();
     loop {
         let localtime: DateTime<Local> = Local::now();
+        let mut table = Table::new();
+
+        table
+            .load_preset("     ═  |          ")
+            .set_content_arrangement(ContentArrangement::Dynamic);
 
         if opts.no_color {
             table.force_no_tty();
