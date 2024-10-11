@@ -66,30 +66,30 @@ macro_rules! bold_limit {
 
 fn main() -> Result<(), StatusError> {
     let opts: Opts = Opts::parse();
-    let localtime: DateTime<Local> = Local::now();
 
     let mut table = Table::new();
-
-    table
-        .load_preset("     ═  |          ")
-        .set_content_arrangement(ContentArrangement::Dynamic);
-
-    if opts.no_color {
-        table.force_no_tty();
-    } else if opts.color {
-        table.enforce_styling();
-    }
-
-    let nvml = Nvml::init()?;
-    let device_num = nvml.device_count()?;
-
-    let system = System::new_with_specifics(
-        RefreshKind::new()
-            .with_processes(ProcessRefreshKind::new().with_user())
-            .with_users_list(),
-    );
-
     loop {
+        let localtime: DateTime<Local> = Local::now();
+
+        table
+            .load_preset("     ═  |          ")
+            .set_content_arrangement(ContentArrangement::Dynamic);
+
+        if opts.no_color {
+            table.force_no_tty();
+        } else if opts.color {
+            table.enforce_styling();
+        }
+
+        let nvml = Nvml::init()?;
+        let device_num = nvml.device_count()?;
+
+        let system = System::new_with_specifics(
+            RefreshKind::new()
+                .with_processes(ProcessRefreshKind::new().with_user())
+                .with_users_list(),
+        );
+
         for index in 0..device_num {
             let device = nvml.device_by_index(index)?;
             let device_name = device.name()?;
@@ -198,7 +198,6 @@ fn main() -> Result<(), StatusError> {
             println!("{}", table);
             break;
         } else {
-            execute!(stdout(), Clear(ClearType::All)).unwrap();
             println!(
                 "{}\t{}\t{}",
                 hostname::get()?.to_str().unwrap_or_default(),
@@ -207,6 +206,7 @@ fn main() -> Result<(), StatusError> {
             );
             println!("{}", table);
             std::thread::sleep(std::time::Duration::from_secs(2));
+            execute!(stdout(), Clear(ClearType::All)).unwrap();
         }
     }
     Ok(())
