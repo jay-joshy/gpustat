@@ -89,122 +89,125 @@ fn main() -> Result<(), StatusError> {
             .with_users_list(),
     );
 
-    for index in 0..device_num {
-        let device = nvml.device_by_index(index)?;
-        let device_name = device.name()?;
-        let device_memory = device.memory_info()?;
-        let device_processes = device.running_compute_processes()?;
+    loop {
+        for index in 0..device_num {
+            let device = nvml.device_by_index(index)?;
+            let device_name = device.name()?;
+            let device_memory = device.memory_info()?;
+            let device_processes = device.running_compute_processes()?;
 
-        let mut process_info = vec![];
-        for device_process in device_processes {
-            let process = system.process(Pid::from_u32(device_process.pid)).unwrap();
-            let user_id = process.user_id().expect("Unable to get UID!");
-            let user = User::from_uid(Uid::from(*user_id.to_owned()))?.unwrap();
-            let used = match device_process.used_gpu_memory {
-                UsedGpuMemory::Unavailable => String::from("Unavailable"),
-                UsedGpuMemory::Used(m) => {
-                    format!("{}M", m >> 20)
-                }
-            };
+            let mut process_info = vec![];
+            for device_process in device_processes {
+                let process = system.process(Pid::from_u32(device_process.pid)).unwrap();
+                let user_id = process.user_id().expect("Unable to get UID!");
+                let user = User::from_uid(Uid::from(*user_id.to_owned()))?.unwrap();
+                let used = match device_process.used_gpu_memory {
+                    UsedGpuMemory::Unavailable => String::from("Unavailable"),
+                    UsedGpuMemory::Used(m) => {
+                        format!("{}M", m >> 20)
+                    }
+                };
 
-            let info = {
-                let mut s = user.name;
-                if opts.show_full_cmd || opts.show_all {
-                    s = s + ":" + &process.cmd().join(" ");
-                } else if opts.show_cmd {
-                    s = s + ":" + process.name();
-                }
-                if opts.show_pid || opts.show_all {
-                    s = s + "/" + &device_process.pid.to_string();
-                }
-                s
-            };
-            process_info.push(format!("{}({})", info, used));
+                let info = {
+                    let mut s = user.name;
+                    if opts.show_full_cmd || opts.show_all {
+                        s = s + ":" + &process.cmd().join(" ");
+                    } else if opts.show_cmd {
+                        s = s + ":" + process.name();
+                    }
+                    if opts.show_pid || opts.show_all {
+                        s = s + "/" + &device_process.pid.to_string();
+                    }
+                    s
+                };
+                process_info.push(format!("{}({})", info, used));
+            }
+
+            let temperature = device.temperature(TemperatureSensor::Gpu)?; // 50
+            let util_rates = device.utilization_rates()?.gpu; // 30
+
+            let device_memory_rates = device_memory.used as f64 / device_memory.total as f64; // 50
+
+            let temperature_cell = bold_limit!(temperature, 50, Color::Red, "{}°C", temperature);
+            let utilization_cell = bold_limit!(util_rates, 30, Color::Green, "{} %", util_rates);
+
+            let mut row = vec![
+                Cell::new(format!("[{}]", index)).fg(Color::DarkCyan), // index
+                Cell::new(device_name).fg(Color::DarkBlue),            // gpu type name
+                temperature_cell,
+                utilization_cell,
+            ];
+
+            if opts.show_fan || opts.show_all {
+                let fan_color = Color::Rgb {
+                    r: 255,
+                    g: 0,
+                    b: 255,
+                };
+                let fan_rates = device.fan_speed(0)?; // 50
+                let fan_cell = bold_limit!(fan_rates, 50, fan_color, "F: {} %", fan_rates);
+                row.push(fan_cell);
+            }
+
+            if opts.show_codec || opts.show_all {
+                let en_util_rates = device.encoder_utilization()?.utilization; // 30
+                let de_util_rates = device.decoder_utilization()?.utilization; // 30
+
+                let encoder_cell =
+                    bold_limit!(en_util_rates, 30, Color::Cyan, "E: {} %", en_util_rates);
+                let decoder_cell =
+                    bold_limit!(de_util_rates, 30, Color::Cyan, "D: {} %", de_util_rates);
+
+                row.push(encoder_cell);
+                row.push(decoder_cell);
+            }
+
+            let pow_usage = device.power_usage()?;
+            let pow_limit = device.power_management_limit()?;
+            let pow_rates = pow_usage as f32 / pow_limit as f32; // 50
+            let pow_cell = bold_limit!(
+                pow_rates,
+                0.5,
+                Color::DarkMagenta,
+                "{} / {} W",
+                pow_usage / 1000,
+                pow_limit / 1000
+            );
+            let memory_cell = bold_limit!(
+                device_memory_rates,
+                0.5,
+                Color::Yellow,
+                "{} / {} MB",
+                device_memory.used >> 20,
+                device_memory.total >> 20
+            );
+
+            row.push(pow_cell);
+            row.push(memory_cell);
+            row.push(Cell::new(process_info.join(",")).fg(Color::DarkYellow));
+
+            table.add_row(row);
         }
-
-        let temperature = device.temperature(TemperatureSensor::Gpu)?; // 50
-        let util_rates = device.utilization_rates()?.gpu; // 30
-
-        let device_memory_rates = device_memory.used as f64 / device_memory.total as f64; // 50
-
-        let temperature_cell = bold_limit!(temperature, 50, Color::Red, "{}°C", temperature);
-        let utilization_cell = bold_limit!(util_rates, 30, Color::Green, "{} %", util_rates);
-
-        let mut row = vec![
-            Cell::new(format!("[{}]", index)).fg(Color::DarkCyan), // index
-            Cell::new(device_name).fg(Color::DarkBlue),            // gpu type name
-            temperature_cell,
-            utilization_cell,
-        ];
-
-        if opts.show_fan || opts.show_all {
-            let fan_color = Color::Rgb {
-                r: 255,
-                g: 0,
-                b: 255,
-            };
-            let fan_rates = device.fan_speed(0)?; // 50
-            let fan_cell = bold_limit!(fan_rates, 50, fan_color, "F: {} %", fan_rates);
-            row.push(fan_cell);
+        if !opts.continuous {
+            println!(
+                "{}\t{}\t{}",
+                hostname::get()?.to_str().unwrap_or_default(),
+                localtime.format("%Y-%m-%d %H:%M:%S"),
+                nvml.sys_driver_version()?
+            );
+            println!("{}", table);
+            break;
+        } else {
+            execute!(stdout(), Clear(ClearType::All)).unwrap();
+            println!(
+                "{}\t{}\t{}",
+                hostname::get()?.to_str().unwrap_or_default(),
+                localtime.format("%Y-%m-%d %H:%M:%S"),
+                nvml.sys_driver_version()?
+            );
+            println!("{}", table);
+            std::thread::sleep(std::time::Duration::from_secs(2));
         }
-
-        if opts.show_codec || opts.show_all {
-            let en_util_rates = device.encoder_utilization()?.utilization; // 30
-            let de_util_rates = device.decoder_utilization()?.utilization; // 30
-
-            let encoder_cell =
-                bold_limit!(en_util_rates, 30, Color::Cyan, "E: {} %", en_util_rates);
-            let decoder_cell =
-                bold_limit!(de_util_rates, 30, Color::Cyan, "D: {} %", de_util_rates);
-
-            row.push(encoder_cell);
-            row.push(decoder_cell);
-        }
-
-        let pow_usage = device.power_usage()?;
-        let pow_limit = device.power_management_limit()?;
-        let pow_rates = pow_usage as f32 / pow_limit as f32; // 50
-        let pow_cell = bold_limit!(
-            pow_rates,
-            0.5,
-            Color::DarkMagenta,
-            "{} / {} W",
-            pow_usage / 1000,
-            pow_limit / 1000
-        );
-        let memory_cell = bold_limit!(
-            device_memory_rates,
-            0.5,
-            Color::Yellow,
-            "{} / {} MB",
-            device_memory.used >> 20,
-            device_memory.total >> 20
-        );
-
-        row.push(pow_cell);
-        row.push(memory_cell);
-        row.push(Cell::new(process_info.join(",")).fg(Color::DarkYellow));
-
-        table.add_row(row);
     }
-    if !opts.continuous {
-        println!(
-            "{}\t{}\t{}",
-            hostname::get()?.to_str().unwrap_or_default(),
-            localtime.format("%Y-%m-%d %H:%M:%S"),
-            nvml.sys_driver_version()?
-        );
-        println!("{}", table);
-    } else {
-        execute!(stdout(), Clear(ClearType::All)).unwrap();
-        println!(
-            "{}\t{}\t{}",
-            hostname::get()?.to_str().unwrap_or_default(),
-            localtime.format("%Y-%m-%d %H:%M:%S"),
-            nvml.sys_driver_version()?
-        );
-        println!("{}", table);
-    }
-
     Ok(())
 }
