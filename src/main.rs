@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use clap::Parser;
 use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
 use crossterm::{
-    execute,
+    cursor, execute,
     terminal::{Clear, ClearType},
 };
 use nix::unistd::{Uid, User};
@@ -206,7 +206,13 @@ fn main() -> Result<(), StatusError> {
             );
             println!("{}", table);
             std::thread::sleep(std::time::Duration::from_secs(2));
-            print!("{esc}c", esc = 27 as char);
+            // print!("{esc}c", esc = 27 as char);
+            execute!(
+                stdout(),
+                cursor::MoveTo(0, 0), // Move cursor to top-left corner
+                Clear(ClearType::FromCursorDown)  // Clear screen from cursor position down
+            )
+            .unwrap();
         }
     }
     Ok(())
