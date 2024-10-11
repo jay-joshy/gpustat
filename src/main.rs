@@ -112,17 +112,6 @@ fn main() -> Result<(), StatusError> {
             let fan_cell = bold_limit!(fan_rates, 50, fan_color, "F: {} %", fan_rates);
             row.push(fan_cell);
 
-            let en_util_rates = device.encoder_utilization()?.utilization; // 30
-            let de_util_rates = device.decoder_utilization()?.utilization; // 30
-
-            let encoder_cell =
-                bold_limit!(en_util_rates, 30, Color::Cyan, "E: {} %", en_util_rates);
-            let decoder_cell =
-                bold_limit!(de_util_rates, 30, Color::Cyan, "D: {} %", de_util_rates);
-
-            row.push(encoder_cell);
-            row.push(decoder_cell);
-
             let pow_usage = device.power_usage()?;
             let pow_limit = device.power_management_limit()?;
             let pow_rates = pow_usage as f32 / pow_limit as f32; // 50
@@ -149,6 +138,8 @@ fn main() -> Result<(), StatusError> {
 
             table.add_row(row);
         }
+
+        table.set_header(vec!["", "GPU", "Temp", "Usage", "Fan", "Power", "GPU Mem"]);
         if !opts.continuous {
             println!(
                 "{}\t{}\t{}",

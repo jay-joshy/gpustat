@@ -1,6 +1,6 @@
 [package]
 name = "gpustat_fork"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2018"
 license = "GPL-2.0"
 description = "A rust-version of gpustat. All credit to the original crate author: just added functionality for continuous monitoring every 2 seconds"
