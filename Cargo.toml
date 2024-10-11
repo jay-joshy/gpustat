@@ -1,18 +1,15 @@
 [package]
 name = "gpustat_fork"
-version = "0.1.7"
-authors = ["ylfeng <ylfeng@ir.hit.edu.cn>"]
+version = "0.1.8"
 edition = "2018"
 license = "GPL-2.0"
-description = "A rust-version of gpustat. All credit to the original crate author: just added functionality for continuous monitoring"
-keywords = ["shell", "gpustat"]
+description = "A rust-version of gpustat. All credit to the original crate author: just added functionality for continuous monitoring every 2 seconds"
 
 [profile.release]
 lto = true
 opt-level = 3
 panic = 'abort'
 codegen-units = 1
-
 
 [dependencies]
 nix = "0.26"
@@ -23,7 +20,6 @@ hostname = "^0.3"
 thiserror = "1.0"
 comfy-table = "7"
 nvml-wrapper = { version = "0.9", default-features = false }
-crossterm = "0.25"
 
 [features]
 legacy-functions = ["nvml-wrapper/legacy-functions"]

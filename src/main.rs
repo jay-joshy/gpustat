@@ -23,30 +23,8 @@ pub enum StatusError {
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 struct Opts {
-    #[arg(long, help = "Force colored output (even when stdout is not a tty)")]
-    color: bool,
-    #[arg(long, help = "Suppress colored output")]
-    no_color: bool,
-    // #[clap(short = 'u', long, about = "Display username of the process owner")]
-    // show_user: bool,
-    #[arg(short = 'c', long, help = "Display the process name")]
-    show_cmd: bool,
     #[arg(short = 'i', long, help = "Continually display every 2 seconds")]
     continuous: bool,
-    #[arg(
-        short = 'f',
-        long,
-        help = "Display full command and cpu stats of running process"
-    )]
-    show_full_cmd: bool,
-    #[arg(short = 'p', long, help = "Display PID of the process")]
-    show_pid: bool,
-    #[arg(short = 'F', long, help = "Display GPU fan speed")]
-    show_fan: bool,
-    #[arg(short = 'e', long, help = "Display encoder and/or decoder utilization")]
-    show_codec: bool,
-    #[arg(short = 'a', long, help = "Display all gpu properties above")]
-    show_all: bool,
 }
 
 macro_rules! bold_limit {
@@ -72,11 +50,7 @@ fn main() -> Result<(), StatusError> {
             .load_preset("     ═  |          ")
             .set_content_arrangement(ContentArrangement::Dynamic);
 
-        if opts.no_color {
-            table.force_no_tty();
-        } else if opts.color {
-            table.enforce_styling();
-        }
+        table.enforce_styling();
 
         let nvml = Nvml::init()?;
         let device_num = nvml.device_count()?;
@@ -107,14 +81,8 @@ fn main() -> Result<(), StatusError> {
 
                 let info = {
                     let mut s = user.name;
-                    if opts.show_full_cmd || opts.show_all {
-                        s = s + ":" + &process.cmd().join(" ");
-                    } else if opts.show_cmd {
-                        s = s + ":" + process.name();
-                    }
-                    if opts.show_pid || opts.show_all {
-                        s = s + "/" + &device_process.pid.to_string();
-                    }
+                    s = s + ":" + &process.cmd().join(" ");
+                    s = s + "/" + &device_process.pid.to_string();
                     s
                 };
                 process_info.push(format!("{}({})", info, used));
@@ -135,29 +103,25 @@ fn main() -> Result<(), StatusError> {
                 utilization_cell,
             ];
 
-            if opts.show_fan || opts.show_all {
-                let fan_color = Color::Rgb {
-                    r: 255,
-                    g: 0,
-                    b: 255,
-                };
-                let fan_rates = device.fan_speed(0)?; // 50
-                let fan_cell = bold_limit!(fan_rates, 50, fan_color, "F: {} %", fan_rates);
-                row.push(fan_cell);
-            }
+            let fan_color = Color::Rgb {
+                r: 255,
+                g: 0,
+                b: 255,
+            };
+            let fan_rates = device.fan_speed(0)?; // 50
+            let fan_cell = bold_limit!(fan_rates, 50, fan_color, "F: {} %", fan_rates);
+            row.push(fan_cell);
 
-            if opts.show_codec || opts.show_all {
-                let en_util_rates = device.encoder_utilization()?.utilization; // 30
-                let de_util_rates = device.decoder_utilization()?.utilization; // 30
+            let en_util_rates = device.encoder_utilization()?.utilization; // 30
+            let de_util_rates = device.decoder_utilization()?.utilization; // 30
 
-                let encoder_cell =
-                    bold_limit!(en_util_rates, 30, Color::Cyan, "E: {} %", en_util_rates);
-                let decoder_cell =
-                    bold_limit!(de_util_rates, 30, Color::Cyan, "D: {} %", de_util_rates);
+            let encoder_cell =
+                bold_limit!(en_util_rates, 30, Color::Cyan, "E: {} %", en_util_rates);
+            let decoder_cell =
+                bold_limit!(de_util_rates, 30, Color::Cyan, "D: {} %", de_util_rates);
 
-                row.push(encoder_cell);
-                row.push(decoder_cell);
-            }
+            row.push(encoder_cell);
+            row.push(decoder_cell);
 
             let pow_usage = device.power_usage()?;
             let pow_limit = device.power_management_limit()?;
