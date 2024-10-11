@@ -1,13 +1,9 @@
 use chrono::prelude::*;
 use clap::Parser;
-use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
-use crossterm::{
-    cursor, execute,
-    terminal::{Clear, ClearType},
-};
+use comfy_table::{Attribute, Cell, Color, Table};
 use nix::unistd::{Uid, User};
 use nvml_wrapper::{enum_wrappers::device::TemperatureSensor, enums::device::UsedGpuMemory, Nvml};
-use std::io::stdout;
+use std::io::{self, Write};
 use sysinfo::{Pid, PidExt, ProcessExt, ProcessRefreshKind, RefreshKind, System, SystemExt};
 use thiserror::Error;
 
@@ -66,14 +62,12 @@ macro_rules! bold_limit {
 
 fn main() -> Result<(), StatusError> {
     let opts: Opts = Opts::parse();
+    let stdout = io::stdout(); // get the global stdout entity
+    let mut handle = stdout.lock(); // acquire a lock on it
 
     let mut table = Table::new();
     loop {
         let localtime: DateTime<Local> = Local::now();
-
-        table
-            .load_preset("     ═  |          ")
-            .set_content_arrangement(ContentArrangement::Dynamic);
 
         if opts.no_color {
             table.force_no_tty();
@@ -193,26 +187,22 @@ fn main() -> Result<(), StatusError> {
                 "{}\t{}\t{}",
                 hostname::get()?.to_str().unwrap_or_default(),
                 localtime.format("%Y-%m-%d %H:%M:%S"),
-                nvml.sys_driver_version()?
+                nvml.sys_driver_version()?,
             );
             println!("{}", table);
             break;
         } else {
-            println!(
+            writeln!(
+                handle,
                 "{}\t{}\t{}\n{}",
                 hostname::get()?.to_str().unwrap_or_default(),
                 localtime.format("%Y-%m-%d %H:%M:%S"),
-                nvml.sys_driver_version()?,
+                nvml.sys_driver_version().unwrap_or_default(),
                 table
-            );
+            )?;
+            handle.flush().unwrap();
             std::thread::sleep(std::time::Duration::from_secs(2));
-            // print!("{esc}c", esc = 27 as char);
-            execute!(
-                stdout(),
-                cursor::MoveTo(0, 0), // Move cursor to top-left corner
-                Clear(ClearType::FromCursorDown)  // Clear screen from cursor position down
-            )
-            .unwrap();
+            print!("\x1B[2J\x1B[H");
         }
     }
     Ok(())
