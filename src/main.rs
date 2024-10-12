@@ -155,7 +155,7 @@ fn main() -> Result<(), StatusError> {
                 nvml.sys_driver_version().unwrap_or_default(),
                 table
             )?;
-            handle.flush().unwrap();
+            handle.flush()?;
             std::thread::sleep(std::time::Duration::from_secs(2));
             print!("\x1B[2J\x1B[H");
         }

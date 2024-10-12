@@ -4,6 +4,8 @@ A simple fork of the rust version of the gpustat package. See original repo: htt
 Made for my own private use case.
 Just wanted a simple batteries included continuous output to the terminal of the original.
 
+Only works for machines with NVIDIA GPUs.
+
 ## Quick Installation
 
 Install from Cargo:
